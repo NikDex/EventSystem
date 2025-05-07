@@ -92,11 +92,19 @@ namespace ev
 		}
 	};
 
-	template <class RegisteredEvents, auto Priority>
+	template <size_t N>
+	using priority_type = ev::event_map<entt::id_type, unsigned char, N>;
+
+	template <class Event, unsigned char Priority>
+	consteval auto make_priority()
+	{
+		return std::make_pair(entt::type_hash<Event>::value(), Priority);
+	}
+
+	template <class RegisteredEvents>
 	struct priority_traits
 	{
 		static_assert(!RegisteredEvents::hashes.empty(), "No events");
-		static_assert(std::is_integral_v<typename decltype(Priority)::value_type>, "Bad priority array");
 
 		static consteval auto get_zero_priority()
 		{
@@ -109,20 +117,35 @@ namespace ev
 			return my_map;
 		}
 
+		template <class Listener>
+		static consteval auto get_or_make_priority()
+		{
+			if constexpr (requires()
+			{
+				Listener::priority;
+			})
+			{
+				return Listener::priority;
+			}
+			return get_zero_priority();
+		}
+
+		template <auto Priority>
 		static consteval auto zero_or_priority(const entt::id_type hash)
 		{
 			if (auto res = Priority.optional_at(hash); !res)
-				return static_cast<typename decltype(Priority)::value_type>(0);
+				return static_cast<typename std::decay_t<decltype(Priority)>::value_type>(0);
 			return Priority.at(hash);
 		}
 
+		template <auto Priority>
 		static consteval auto get_normalized_priority()
 		{
-			if (Priority.data.size() == 0) return get_zero_priority();
+			if (Priority.data.empty()) return get_zero_priority();
 			event_map<entt::id_type, unsigned char, RegisteredEvents::size> my_map{};
 			for (const auto& hash : RegisteredEvents::hashes)
 			{
-				my_map.insert(hash, zero_or_priority(hash));
+				my_map.insert(hash, zero_or_priority<Priority>(hash));
 			}
 
 			return my_map;
@@ -150,7 +173,7 @@ namespace ev
 	template <class RegisteredEvents, auto Priority, size_t Pos>
 	consteval void set_table(auto& table)
 	{
-		for (const auto& priority : priority_traits<RegisteredEvents, Priority>::get_normalized_priority().data)
+		for (const auto& priority : priority_traits<RegisteredEvents>::template get_normalized_priority<Priority>().data)
 		{
 			table.insert(Pos, std::make_pair(priority.first, priority.second));
 		}
@@ -179,7 +202,7 @@ namespace ev
 	template <class RegisteredEvents, class... Listeners>
 	consteval auto make_static_table()
 	{
-		return create_sorted_table<RegisteredEvents, Listeners::priority...>();
+		return create_sorted_table<RegisteredEvents, priority_traits<RegisteredEvents>::template get_or_make_priority<Listeners>()...>();
 	}
 
 	template <class Event, class... Args>
