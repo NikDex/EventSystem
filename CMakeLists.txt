@@ -15,7 +15,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(include)
-
 include(FetchContent)
 
 FetchContent_Declare(
@@ -35,6 +34,8 @@ if(ENABLE_TESTING)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
+unset(ENABLE_TESTING CACHE)
