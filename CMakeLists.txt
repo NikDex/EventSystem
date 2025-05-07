@@ -7,11 +7,14 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-project (EventSystem)
+project(EventSystem)
 add_library(EventSystem INTERFACE)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+include_directories(include)
 
 include(FetchContent)
 
@@ -23,8 +26,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(entt)
 
-include_directories(include)
-
 if(ENABLE_TESTING)
     FetchContent_Declare(
         googletest
@@ -34,6 +35,6 @@ if(ENABLE_TESTING)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
-    enable_testing()
     add_subdirectory(tests)
 endif()
+
