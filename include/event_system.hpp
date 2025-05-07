@@ -20,7 +20,7 @@ namespace ev
 		{
 			if (offset >= Size) return;
 
-			data._Elems[offset] = std::make_pair(key, value);
+			data[offset] = std::make_pair(key, value);
 			offset++;
 		}
 
