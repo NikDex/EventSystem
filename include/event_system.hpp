@@ -9,6 +9,16 @@
 
 namespace ev
 {
+	template <class T>
+	concept is_container = requires(T c)
+	{
+		typename T::value_type;
+		typename T::iterator;
+		c.begin();
+		c.end();
+		{ c.size() } -> std::same_as<std::size_t>;
+	};
+
 	template<class Key, class Value, size_t Size>
 	struct event_map {
 		std::array<std::pair<Key, Value>, Size> data;
@@ -55,12 +65,12 @@ namespace ev
 	struct event_array {
 		std::array<Value, Size> data;
 
-		constexpr void for_each(const std::function<void(Value& value)>& callback)
+		constexpr void for_each(const std::function<void(Value&)>& callback)
 		{
 			std::ranges::for_each(data, callback);
 		}
 
-		constexpr void for_each(const std::function<void(const Value& value)>& callback)
+		constexpr void for_each(const std::function<void(const Value&)>& callback)
 		{
 			std::ranges::for_each(data, callback);
 		}
@@ -70,14 +80,47 @@ namespace ev
 		}
 	};
 
+	template <class T>
+	concept is_event_map = requires(T c)
+	{
+		typename T::value_type;
+		requires std::is_function_v<decltype(T::insert)>;
+		requires std::is_function_v<decltype(T::at)>;
+		requires std::is_function_v<decltype(T::optional_at)>;
+		requires std::is_function_v<decltype(T::clear)>;
+		requires is_container<std::decay_t<decltype(c.data)>>;
+		{ c.offset } -> std::same_as<size_t&>;
+	};
+
+	template <class T>
+	concept is_event_array = requires(T c)
+	{
+		requires std::is_function_v<decltype(T::for_each)>;
+		requires std::is_function_v<decltype(T::clear)>;
+		requires is_container<std::decay_t<decltype(c.data)>>;
+	};
+
+	
 	struct event_mark {};
-	struct just_event : event_mark {};
-	struct cancelable_event : event_mark
+	struct cancelable_event
 	{
 		bool canceled = false;
 	};
+	struct ref_event
+	{
+		ref_event() = default;
+		~ref_event() = default;
 
-	template <class... Events>
+		ref_event(const ref_event&) = delete;
+		ref_event& operator=(const ref_event&) = delete;
+		ref_event(ref_event&&) = delete;
+		ref_event& operator=(ref_event&&) = delete;
+	};
+
+	template <class T>
+	concept is_event = std::derived_from<std::decay_t<T>, event_mark>;
+
+	template <is_event... Events>
 	struct registered_events
 	{
 		static constexpr auto size = sizeof...(Events);
@@ -85,27 +128,53 @@ namespace ev
 
 		static constexpr bool exists(const entt::id_type my_hash)
 		{
-			return std::ranges::all_of(hashes, [my_hash](const auto hash) constexpr
+			return std::ranges::any_of(hashes, [my_hash](const auto hash) constexpr
 				{
 					return my_hash == hash;
 				});
 		}
+
+		static_assert(size > 0, "Registered events cannot be empty");
+	};
+
+	template <class T>
+	concept is_registered_events = requires()
+	{
+		requires is_container<std::decay_t<decltype(T::hashes)>>;
+		requires std::is_function_v<decltype(T::exists)>;
+	{ T::size } -> std::same_as<const std::size_t&>;
 	};
 
 	template <size_t N>
-	using priority_type = ev::event_map<entt::id_type, unsigned char, N>;
+	using priority_type = event_map<entt::id_type, unsigned char, N>;
 
-	template <class Event, unsigned char Priority>
+	template <is_registered_events RegisteredEvents, is_container auto Table>
+	struct table_t
+	{
+		static constexpr auto table = Table;
+
+		[[nodiscard]] static constexpr bool event_exists(const entt::id_type hash)
+		{
+			return RegisteredEvents::exists(hash);
+		}
+	};
+	
+	template <class T>
+	concept is_table = requires()
+	{
+		requires is_container<std::decay_t<decltype(T::table)>>;
+		requires std::is_function_v<decltype(T::event_exists)>;
+	};
+
+	template <is_event Event, unsigned char Priority>
 	consteval auto make_priority()
 	{
 		return std::make_pair(entt::type_hash<Event>::value(), Priority);
 	}
 
-	template <class RegisteredEvents>
+	template <is_registered_events RegisteredEvents>
 	struct priority_traits
 	{
-		static_assert(!RegisteredEvents::hashes.empty(), "No events");
-
 		static consteval auto get_zero_priority()
 		{
 			event_map<entt::id_type, unsigned char, RegisteredEvents::size> my_map{};
@@ -130,7 +199,7 @@ namespace ev
 			return get_zero_priority();
 		}
 
-		template <auto Priority>
+		template <is_event_map auto Priority>
 		static consteval auto zero_or_priority(const entt::id_type hash)
 		{
 			if (auto res = Priority.optional_at(hash); !res)
@@ -138,7 +207,7 @@ namespace ev
 			return Priority.at(hash);
 		}
 
-		template <auto Priority>
+		template <is_event_map auto Priority>
 		static consteval auto get_normalized_priority()
 		{
 			if (Priority.data.empty()) return get_zero_priority();
@@ -170,8 +239,8 @@ namespace ev
 	template <size_t N>
 	constexpr auto event_index_sequence_for = std::make_index_sequence<N>();
 
-	template <class RegisteredEvents, auto Priority, size_t Pos>
-	consteval void set_table(auto& table)
+	template <is_registered_events RegisteredEvents, is_event_map auto Priority, size_t Pos>
+	consteval void set_table(is_event_map auto& table)
 	{
 		for (const auto& priority : priority_traits<RegisteredEvents>::template get_normalized_priority<Priority>().data)
 		{
@@ -179,13 +248,13 @@ namespace ev
 		}
 	}
 
-	template <class RegisteredEvents, auto... Priorities, size_t... Indexes>
-	consteval void set_table_with_indices(auto& table, std::index_sequence<Indexes...>)
+	template <is_registered_events RegisteredEvents, is_event_map auto... Priorities, size_t... Indexes>
+	consteval void set_table_with_indices(is_event_map auto& table, std::index_sequence<Indexes...>)
 	{
 		(set_table<RegisteredEvents, Priorities, Indexes>(table), ...);
 	}
 
-	template <class RegisteredEvents, auto... Priorities>
+	template <is_registered_events RegisteredEvents, is_event_map auto... Priorities>
 	consteval auto create_sorted_table()
 	{
 		event_map<size_t, std::pair<entt::id_type, unsigned char>, sizeof...(Priorities)* RegisteredEvents::size> table{};
@@ -199,18 +268,22 @@ namespace ev
 		return table.data;
 	}
 
-	template <class RegisteredEvents, class... Listeners>
+	template <is_registered_events RegisteredEvents, class... Listeners>
 	consteval auto make_static_table()
 	{
-		return create_sorted_table<RegisteredEvents, priority_traits<RegisteredEvents>::template get_or_make_priority<Listeners>()...>();
+		return table_t<RegisteredEvents, create_sorted_table<RegisteredEvents, priority_traits<RegisteredEvents>::template get_or_make_priority<Listeners>()...>()>{};
 	}
 
-	template <class Event, class... Args>
-	constexpr auto fire_emplace_event(auto& listeners, const auto& table, Args&&... args)
+	template <is_event Event, is_table auto Table, class... Args> requires requires()
+	{
+		requires std::constructible_from<Event, Args...>;
+		requires Table.event_exists(entt::type_hash<Event>::value());
+	}
+	constexpr auto fire_emplace_event(is_container auto& listeners, Args&&... args)
 	{
 		Event event{ std::forward<Args>(args)... };
 
-		std::ranges::for_each(table, [&event, &listeners](const auto& mod) constexpr
+		std::ranges::for_each(Table.table, [&event, &listeners](const auto& mod) constexpr
 			{
 				if (mod.second.first == entt::type_hash<Event>::value())
 				{
@@ -219,10 +292,13 @@ namespace ev
 			});
 	}
 
-	template <class Event>
-	constexpr auto fire_event(auto& listeners, const auto& table, Event& event)
+	template <is_event Event, is_table auto Table> requires requires()
 	{
-		std::ranges::for_each(table, [&event, &listeners](const auto& mod) constexpr
+		requires Table.event_exists(entt::type_hash<Event>::value());
+	}
+	constexpr auto fire_event(is_container auto& listeners, Event& event)
+	{
+		std::ranges::for_each(Table.table, [&event, &listeners](const auto& mod) constexpr
 			{
 				if (mod.second.first == entt::type_hash<Event>::value())
 				{

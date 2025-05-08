@@ -31,15 +31,15 @@ public:
 	{
 		void on_event(smth1_event& e)
 		{
-			this->template invoke<0>(*this, e);
+			entt::poly_call<0>(*this, e);
 		}
 		void on_event(smth2_event& e)
 		{
-			this->template invoke<1>(*this, e);
+			entt::poly_call<1>(*this, e);
 		}
 		void on_event(smth3_event& e)
 		{
-			this->template invoke<2>(*this, e);
+			entt::poly_call<2>(*this, e);
 		}
 	};
 
@@ -53,17 +53,23 @@ public:
 
 using listener = entt::poly<listener_interface>;
 
-struct smth1_event
+struct smth1_event: ev::ref_event, ev::event_mark
 {
 	int& value;
+
+	constexpr explicit smth1_event(int& value): value(value) {}
 };
-struct smth2_event
+struct smth2_event : ev::ref_event, ev::event_mark
 {
 	float& value;
+
+	constexpr explicit smth2_event(float& value) : value(value) {}
 };
-struct smth3_event
+struct smth3_event : ev::ref_event, ev::event_mark
 {
 	std::string& value;
+
+	constexpr explicit smth3_event(std::string& value) : value(value) {}
 };
 
 class test1: public listener_base
@@ -190,7 +196,7 @@ public:
 	} };
 };
 
-TEST(Listeners, DefaultWithNoPriority)
+TEST(Listeners, DefaultNoPriority)
 {
 	auto [listeners] = ev::event_array{ std::array {
 		listener(std::in_place_type<test1>, "test 1"),
@@ -201,20 +207,98 @@ TEST(Listeners, DefaultWithNoPriority)
 	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
 
 	int int_data = 0;
-	ev::fire_emplace_event<smth1_event>(listeners, table, int_data);
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
 
 	float float_data = 0.f;
-	ev::fire_emplace_event<smth2_event>(listeners, table, float_data);
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
 
 	std::string name_data = "nothing";
-	ev::fire_emplace_event<smth3_event>(listeners, table, name_data);
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
 
 	EXPECT_EQ(int_data, 3);
 	EXPECT_EQ(float_data, 0.1f);
 	EXPECT_EQ(name_data, "test 3");
 }
 
-TEST(ListenersAndPriority, AllWithPriority)
+TEST(Listeners, DefaultNoPriorityAndNoEmplace)
+{
+	auto [listeners] = ev::event_array{ std::array {
+		listener(std::in_place_type<test1>, "test 1"),
+		listener(std::in_place_type<test2>, "test 2"),
+		listener(std::in_place_type<test3>, "test 3")
+	} };
+
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
+
+	int int_data = 0;
+	float float_data = 0.f;
+	std::string name_data = "nothing";
+
+	smth1_event e1{int_data};
+	smth2_event e2{ float_data };
+	smth3_event e3{ name_data };
+
+	ev::fire_event<smth1_event, table>(listeners, e1);
+	ev::fire_event<smth2_event, table>(listeners, e2);
+	ev::fire_event<smth3_event, table>(listeners, e3);
+
+	EXPECT_EQ(int_data, 3);
+	EXPECT_EQ(float_data, 0.1f);
+	EXPECT_EQ(name_data, "test 3");
+}
+
+TEST(Listeners, NoStaticListeners)
+{
+	auto listeners = std::vector{
+		listener(std::in_place_type<test1>, "test 1"),
+		listener(std::in_place_type<test2>, "test 2"),
+		listener(std::in_place_type<test3>, "test 3")
+	};
+
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
+
+	int int_data = 0;
+	float float_data = 0.f;
+	std::string name_data = "nothing";
+
+	smth1_event e1{int_data};
+	smth2_event e2{ float_data };
+	smth3_event e3{ name_data };
+
+	ev::fire_event<smth1_event, table>(listeners, e1);
+	ev::fire_event<smth2_event, table>(listeners, e2);
+	ev::fire_event<smth3_event, table>(listeners, e3);
+
+	EXPECT_EQ(int_data, 3);
+	EXPECT_EQ(float_data, 0.1f);
+	EXPECT_EQ(name_data, "test 3");
+}
+
+TEST(ListenersAndPriority, NoStaticListenersAllPriority)
+{
+	auto listeners = std::vector{
+		listener(std::in_place_type<test1_with_priority>, "test 1"),
+		listener(std::in_place_type<test2_with_priority>, "test 2"),
+		listener(std::in_place_type<test3_with_priority>, "test 3")
+	};
+
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>();
+
+	int int_data = 0;
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
+
+	float float_data = 0.f;
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
+
+	std::string name_data = "nothing";
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
+
+	EXPECT_EQ(int_data, 1);
+	EXPECT_EQ(float_data, 0.2f);
+	EXPECT_EQ(name_data, "test 2");
+}
+
+TEST(ListenersAndPriority, AllPriority)
 {
 	auto [listeners] = ev::event_array{ std::array {
 		listener(std::in_place_type<test1_with_priority>, "test 1"),
@@ -225,20 +309,20 @@ TEST(ListenersAndPriority, AllWithPriority)
 	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>();
 
 	int int_data = 0;
-	ev::fire_emplace_event<smth1_event>(listeners, table, int_data);
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
 
 	float float_data = 0.f;
-	ev::fire_emplace_event<smth2_event>(listeners, table, float_data);
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
 
 	std::string name_data = "nothing";
-	ev::fire_emplace_event<smth3_event>(listeners, table, name_data);
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
 
 	EXPECT_EQ(int_data, 1);
 	EXPECT_EQ(float_data, 0.2f);
 	EXPECT_EQ(name_data, "test 2");
 }
 
-TEST(ListenersAndPriority, ListenerWithOnePriority)
+TEST(ListenersAndPriority, OneListenerWithAllEventsPriority)
 {
 	auto [listeners] = ev::event_array{std::array {
 		listener(std::in_place_type<test1>, "test 1"),
@@ -249,20 +333,20 @@ TEST(ListenersAndPriority, ListenerWithOnePriority)
 	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_priority, test3>();
 
 	int int_data = 0;
-	ev::fire_emplace_event<smth1_event>(listeners, table, int_data);
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
 
 	float float_data = 0.f;
-	ev::fire_emplace_event<smth2_event>(listeners, table, float_data);
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
 
 	std::string name_data = "nothing";
-	ev::fire_emplace_event<smth3_event>(listeners, table, name_data);
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
 
 	EXPECT_EQ(int_data, 3);
 	EXPECT_EQ(float_data, 0.1f);
 	EXPECT_EQ(name_data, "test 3");
 }
 
-TEST(ListenersAndPriority, ListenerWithOnePriorityEvent)
+TEST(ListenersAndPriority, OneListenerWithSingleEventPriority)
 {
 	auto [listeners] = ev::event_array{std::array {
 		listener(std::in_place_type<test1>, "test 1"),
@@ -273,20 +357,20 @@ TEST(ListenersAndPriority, ListenerWithOnePriorityEvent)
 	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_one_priority, test3>();
 
 	int int_data = 0;
-	ev::fire_emplace_event<smth1_event>(listeners, table, int_data);
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
 
 	float float_data = 0.f;
-	ev::fire_emplace_event<smth2_event>(listeners, table, float_data);
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
 
 	std::string name_data = "nothing";
-	ev::fire_emplace_event<smth3_event>(listeners, table, name_data);
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
 
 	EXPECT_EQ(int_data, 3);
 	EXPECT_EQ(float_data, 0.1f);
 	EXPECT_EQ(name_data, "test 3");
 }
 
-TEST(ListenersAndPriority, ListenersWithSamePriority)
+TEST(ListenersAndPriority, OneSamePriority)
 {
 	auto [listeners] = ev::event_array{std::array {
 		listener(std::in_place_type<test1_with_same_priority>, "test 1"),
@@ -297,13 +381,13 @@ TEST(ListenersAndPriority, ListenersWithSamePriority)
 	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_same_priority, test2_with_priority, test3_with_priority>();
 
 	int int_data = 0;
-	ev::fire_emplace_event<smth1_event>(listeners, table, int_data);
+	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
 
 	float float_data = 0.f;
-	ev::fire_emplace_event<smth2_event>(listeners, table, float_data);
+	ev::fire_emplace_event<smth2_event, table>(listeners, float_data);
 
 	std::string name_data = "nothing";
-	ev::fire_emplace_event<smth3_event>(listeners, table, name_data);
+	ev::fire_emplace_event<smth3_event, table>(listeners, name_data);
 
 	EXPECT_EQ(int_data, 1);
 	EXPECT_EQ(float_data, 0.2f);
