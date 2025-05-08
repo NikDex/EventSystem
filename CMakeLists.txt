@@ -7,7 +7,7 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
-project(EventSystem)
+project(EventSystem LANGUAGES CXX)
 add_library(EventSystem INTERFACE)
 
 
@@ -23,7 +23,6 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/skypjack/entt.git
     GIT_TAG        v3.15.0
 )
-
 FetchContent_MakeAvailable(entt)
 
 if(ENABLE_TESTING)
@@ -37,10 +36,6 @@ if(ENABLE_TESTING)
 
     enable_testing()
     add_subdirectory(tests)
-endif()
-
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${CMAKE_PROJECT_NAME} INTERFACE "-std=c++23")
 endif()
 
 unset(ENABLE_TESTING CACHE)
