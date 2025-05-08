@@ -40,7 +40,7 @@ if(ENABLE_TESTING)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-std=c++23")
+    target_compile_options(${CMAKE_PROJECT_NAME} INTERFACE "-std=c++23")
 endif()
 
 unset(ENABLE_TESTING CACHE)
