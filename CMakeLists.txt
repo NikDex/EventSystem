@@ -10,6 +10,7 @@ endif()
 project(EventSystem)
 add_library(EventSystem INTERFACE)
 
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -36,6 +37,10 @@ if(ENABLE_TESTING)
 
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-std=c++23")
 endif()
 
 unset(ENABLE_TESTING CACHE)
