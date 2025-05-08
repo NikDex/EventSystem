@@ -16,7 +16,7 @@ namespace ev
 		typename T::iterator;
 		c.begin();
 		c.end();
-		{ c.size() } -> std::same_as<std::size_t>;
+		c.size();
 	};
 
 	template<class Key, class Value, size_t Size>
@@ -84,10 +84,10 @@ namespace ev
 	concept is_event_map = requires(T c)
 	{
 		typename T::value_type;
-		requires std::is_function_v<decltype(T::insert)>;
-		requires std::is_function_v<decltype(T::at)>;
-		requires std::is_function_v<decltype(T::optional_at)>;
-		requires std::is_function_v<decltype(T::clear)>;
+		(&T::insert);
+		(&T::at);
+		(&T::optional_at);
+		(&T::clear);
 		requires is_container<std::decay_t<decltype(c.data)>>;
 		{ c.offset } -> std::same_as<size_t&>;
 	};
@@ -95,8 +95,8 @@ namespace ev
 	template <class T>
 	concept is_event_array = requires(T c)
 	{
-		requires std::is_function_v<decltype(T::for_each)>;
-		requires std::is_function_v<decltype(T::clear)>;
+		(&T::for_each);
+		(&T::clear);
 		requires is_container<std::decay_t<decltype(c.data)>>;
 	};
 
@@ -141,8 +141,8 @@ namespace ev
 	concept is_registered_events = requires()
 	{
 		requires is_container<std::decay_t<decltype(T::hashes)>>;
-		requires std::is_function_v<decltype(T::exists)>;
-	{ T::size } -> std::same_as<const std::size_t&>;
+		(&T::exists);
+		{ T::size } -> std::same_as<const std::size_t&>;
 	};
 
 	template <size_t N>
@@ -163,7 +163,7 @@ namespace ev
 	concept is_table = requires()
 	{
 		requires is_container<std::decay_t<decltype(T::table)>>;
-		requires std::is_function_v<decltype(T::event_exists)>;
+		(&T::event_exists);
 	};
 
 	template <is_event Event, unsigned char Priority>

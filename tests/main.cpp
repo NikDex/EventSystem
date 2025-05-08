@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <event_system.hpp>
+#include <gtest/gtest.h>
 
 #include <print>
 #include <entt/poly/poly.hpp>
