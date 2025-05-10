@@ -1,6 +1,10 @@
 ﻿cmake_minimum_required (VERSION 3.30.5)
 
 option(EVENTSYSTEM_ENABLE_TESTING "Enable testing" ON)
+option(EVENTSYSTEM_FETCH_ENTT "Fetch EnTT" ON)
+option(EVENTSYSTEM_FETCH_GOOGLETEST "Fetch GoogleTest" ON)
+
+set(FETCH_ENABLED EVENTSYSTEM_FETCH_ENTT OR EVENTSYSTEM_FETCH_GOOGLETEST)
 
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
@@ -23,22 +27,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(single_include)
 
-include(FetchContent)
-FetchContent_Declare(
-    entt
-    GIT_REPOSITORY https://github.com/skypjack/entt.git
-    GIT_TAG        v3.15.0
-)
-FetchContent_MakeAvailable(entt)
+if(FETCH_ENABLED)
+    include(FetchContent)
+endif()
+
+if(EVENTSYSTEM_FETCH_ENTT)
+    FetchContent_Declare(
+        entt
+        GIT_REPOSITORY https://github.com/skypjack/entt.git
+        GIT_TAG        v3.15.0
+    )
+    FetchContent_MakeAvailable(entt)
+endif()
 
 if(EVENTSYSTEM_ENABLE_TESTING)
-    FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG        v1.17.0
-    )
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
+    if(EVENTSYSTEM_FETCH_GOOGLETEST)
+        FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG        v1.17.0
+        )
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(googletest)
+    endif()
     
     enable_testing()
     add_subdirectory(tests)
