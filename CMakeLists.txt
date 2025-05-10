@@ -21,11 +21,13 @@ endif()
 
 project(EventSystem VERSION 1.0.0 LANGUAGES CXX)
 
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include_directories(single_include)
+add_library(EventSystem INTERFACE)
+target_include_directories(EventSystem INTERFACE single_include)
 
 if(FETCH_ENABLED)
     include(FetchContent)
