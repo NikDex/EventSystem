@@ -1,5 +1,4 @@
 ﻿cmake_minimum_required (VERSION 3.30.5)
-project(EventSystem VERSION 1.0.0 LANGUAGES CXX)
 
 option(EVENTSYSTEM_ENABLE_TESTING "Enable testing" ON)
 
@@ -15,6 +14,8 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VE
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.37)
         message(ERROR "use MSVC cl.exe >= 19.37.xxxxx (>= Visual Studio 2022 17.7)")
 endif()
+
+project(EventSystem VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
