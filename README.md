@@ -1,4 +1,5 @@
 ```cmake
+include(FetchContent)
 FetchContent_Declare(
     eventsystem
     GIT_REPOSITORY https://github.com/NikDex/EventSystem.git
