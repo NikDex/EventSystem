@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required (VERSION 3.30.5)
 
-option(ENABLE_TESTING "Enable testing" ON)
+option(EVENTSYSTEM_ENABLE_TESTING "Enable testing" ON)
 
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
@@ -15,7 +15,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VER
         message(ERROR "use MSVC cl.exe >= 19.37.xxxxx (>= Visual Studio 2022 17.7)")
 endif()
 
-project(EventSystem LANGUAGES CXX)
+project(EventSystem VERSION 1.0.0 LANGUAGES CXX)
 add_library(EventSystem INTERFACE)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -32,7 +32,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(entt)
 
-if(ENABLE_TESTING)
+if(EVENTSYSTEM_ENABLE_TESTING)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -44,5 +44,3 @@ if(ENABLE_TESTING)
     enable_testing()
     add_subdirectory(tests)
 endif()
-
-unset(ENABLE_TESTING CACHE)
