@@ -19,15 +19,22 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_CXX_COMPILER_VERSION VER
         message(ERROR "use MSVC cl.exe >= 19.37.xxxxx (>= Visual Studio 2022 17.7)")
 endif()
 
-project(EventSystem VERSION 1.0.0 LANGUAGES CXX)
+project(EventSystem VERSION 1.0.1 LANGUAGES CXX)
+include(ExternalProject)
 
-set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(EventSystem INTERFACE)
-target_include_directories(EventSystem INTERFACE single_include)
+add_library(EventSystem::EventSystem ALIAS EventSystem)
+
+target_include_directories(
+    EventSystem
+    INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/single_include>
+    $<INSTALL_INTERFACE:include>
+)
 
 if(FETCH_ENABLED)
     include(FetchContent)
