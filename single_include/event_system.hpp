@@ -26,6 +26,11 @@ namespace ev
 
 		using value_type = Value;
 
+		constexpr void set_offset(const size_t new_offset) noexcept
+		{
+			this->offset = new_offset;
+		}
+
 		constexpr void insert(const Key& key, const Value& value)
 		{
 			if (offset >= Size) return;
@@ -42,7 +47,7 @@ namespace ev
 				return it->second;
 			}
 
-			throw std::invalid_argument("Wrong key (or value exists)");
+			throw std::invalid_argument("Wrong key is given");
 		}
 
 		[[nodiscard]] constexpr std::optional<Value> optional_at(const Key& key) const noexcept {
@@ -65,12 +70,7 @@ namespace ev
 	struct event_array {
 		std::array<Value, Size> data;
 
-		constexpr void for_each(const std::function<void(Value&)>& callback)
-		{
-			std::ranges::for_each(data, callback);
-		}
-
-		constexpr void for_each(const std::function<void(const Value&)>& callback)
+		constexpr void for_each(auto callback)
 		{
 			std::ranges::for_each(data, callback);
 		}
@@ -106,15 +106,15 @@ namespace ev
 	{
 		bool canceled = false;
 	};
-	struct ref_event
+	struct no_copying
 	{
-		ref_event() = default;
-		~ref_event() = default;
+		no_copying() = default;
+		~no_copying() = default;
 
-		ref_event(const ref_event&) = delete;
-		ref_event& operator=(const ref_event&) = delete;
-		ref_event(ref_event&&) = delete;
-		ref_event& operator=(ref_event&&) = delete;
+		no_copying(const no_copying&) = delete;
+		no_copying& operator=(const no_copying&) = delete;
+		no_copying(no_copying&&) = delete;
+		no_copying& operator=(no_copying&&) = delete;
 	};
 
 	template <class T>
@@ -126,7 +126,7 @@ namespace ev
 		static constexpr auto size = sizeof...(Events);
 		static constexpr std::array<entt::id_type, size> hashes{ entt::type_hash<Events>::value()... };
 
-		static constexpr bool exists(const entt::id_type my_hash)
+		static constexpr bool exists(const entt::id_type my_hash) noexcept
 		{
 			return std::ranges::any_of(hashes, [my_hash](const auto hash) constexpr
 				{
@@ -153,7 +153,7 @@ namespace ev
 	{
 		static constexpr auto table = Table;
 
-		[[nodiscard]] static constexpr bool event_exists(const entt::id_type hash)
+		[[nodiscard]] static constexpr bool event_exists(const entt::id_type hash) noexcept
 		{
 			return RegisteredEvents::exists(hash);
 		}
@@ -167,7 +167,7 @@ namespace ev
 	};
 
 	template <is_event Event, unsigned char Priority>
-	consteval auto make_priority()
+	consteval auto make_priority() noexcept
 	{
 		return std::make_pair(entt::type_hash<Event>::value(), Priority);
 	}
@@ -175,7 +175,7 @@ namespace ev
 	template <is_registered_events RegisteredEvents>
 	struct priority_traits
 	{
-		static consteval auto get_zero_priority()
+		static consteval auto get_zero_priority() noexcept
 		{
 			event_map<entt::id_type, unsigned char, RegisteredEvents::size> my_map{};
 			for (const auto& hash : RegisteredEvents::hashes)
@@ -187,7 +187,7 @@ namespace ev
 		}
 
 		template <class Listener>
-		static consteval auto get_or_make_priority()
+		static consteval auto get_or_make_priority() noexcept
 		{
 			if constexpr (requires()
 			{
@@ -203,12 +203,12 @@ namespace ev
 		static consteval auto zero_or_priority(const entt::id_type hash)
 		{
 			if (auto res = Priority.optional_at(hash); !res)
-				return static_cast<typename std::decay_t<decltype(Priority)>::value_type>(0);
+				return static_cast<typename decltype(Priority)::value_type>(0);
 			return Priority.at(hash);
 		}
 
 		template <is_event_map auto Priority>
-		static consteval auto get_normalized_priority()
+		static consteval auto get_normalized_priority() 
 		{
 			if (Priority.data.empty()) return get_zero_priority();
 			event_map<entt::id_type, unsigned char, RegisteredEvents::size> my_map{};
@@ -269,10 +269,13 @@ namespace ev
 	}
 
 	template <is_registered_events RegisteredEvents, class... Listeners>
-	consteval auto make_static_table()
+	consteval auto make_static_table_t()
 	{
 		return table_t<RegisteredEvents, create_sorted_table<RegisteredEvents, priority_traits<RegisteredEvents>::template get_or_make_priority<Listeners>()...>()>{};
 	}
+
+	template <is_registered_events RegisteredEvents, class... Listeners>
+	constexpr auto make_static_table = make_static_table_t<RegisteredEvents, Listeners...>();
 
 	template <is_event Event, is_table auto Table, class... Args> requires requires()
 	{

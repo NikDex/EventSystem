@@ -8,7 +8,7 @@ struct smth1_event;
 struct smth2_event;
 struct smth3_event;
 
-class listener_base
+class listener_base: public ev::no_copying
 {
 public:
 	explicit listener_base(const char* name): name_(name)
@@ -53,19 +53,19 @@ public:
 
 using listener = entt::poly<listener_interface>;
 
-struct smth1_event: ev::ref_event, ev::event_mark
+struct smth1_event: ev::no_copying, ev::event_mark
 {
 	int& value;
 
 	constexpr explicit smth1_event(int& value): value(value) {}
 };
-struct smth2_event : ev::ref_event, ev::event_mark
+struct smth2_event : ev::no_copying, ev::event_mark
 {
 	float& value;
 
 	constexpr explicit smth2_event(float& value) : value(value) {}
 };
-struct smth3_event : ev::ref_event, ev::event_mark
+struct smth3_event : ev::no_copying, ev::event_mark
 {
 	std::string& value;
 
@@ -204,7 +204,7 @@ TEST(Listeners, DefaultNoPriority)
 		listener(std::in_place_type<test3>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
@@ -228,7 +228,7 @@ TEST(Listeners, DefaultNoPriorityAndNoEmplace)
 		listener(std::in_place_type<test3>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>;
 
 	int int_data = 0;
 	float float_data = 0.f;
@@ -249,13 +249,12 @@ TEST(Listeners, DefaultNoPriorityAndNoEmplace)
 
 TEST(Listeners, NoStaticListeners)
 {
-	auto listeners = std::vector{
-		listener(std::in_place_type<test1>, "test 1"),
-		listener(std::in_place_type<test2>, "test 2"),
-		listener(std::in_place_type<test3>, "test 3")
-	};
+	std::vector<listener> listeners;
+	listeners.emplace_back(std::in_place_type<test1_with_priority>, "test 1");
+	listeners.emplace_back(std::in_place_type<test2_with_priority>, "test 2");
+	listeners.emplace_back(std::in_place_type<test3_with_priority>, "test 3");
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2, test3>;
 
 	int int_data = 0;
 	float float_data = 0.f;
@@ -276,13 +275,12 @@ TEST(Listeners, NoStaticListeners)
 
 TEST(ListenersAndPriority, NoStaticListenersAllPriority)
 {
-	auto listeners = std::vector{
-		listener(std::in_place_type<test1_with_priority>, "test 1"),
-		listener(std::in_place_type<test2_with_priority>, "test 2"),
-		listener(std::in_place_type<test3_with_priority>, "test 3")
-	};
+	std::vector<listener> listeners;
+	listeners.emplace_back(std::in_place_type<test1_with_priority>, "test 1");
+	listeners.emplace_back(std::in_place_type<test2_with_priority>, "test 2");
+	listeners.emplace_back(std::in_place_type<test3_with_priority>, "test 3");
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
@@ -306,7 +304,7 @@ TEST(ListenersAndPriority, AllPriority)
 		listener(std::in_place_type<test3_with_priority>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_priority, test2_with_priority, test3_with_priority>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
@@ -330,7 +328,7 @@ TEST(ListenersAndPriority, OneListenerWithAllEventsPriority)
 		listener(std::in_place_type<test3>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_priority, test3>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_priority, test3>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
@@ -354,7 +352,7 @@ TEST(ListenersAndPriority, OneListenerWithSingleEventPriority)
 		listener(std::in_place_type<test3>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_one_priority, test3>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1, test2_with_one_priority, test3>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
@@ -378,7 +376,7 @@ TEST(ListenersAndPriority, OneSamePriority)
 		listener(std::in_place_type<test3_with_priority>, "test 3")
 	} };
 
-	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_same_priority, test2_with_priority, test3_with_priority>();
+	constexpr auto table = ev::make_static_table<ev::registered_events<smth1_event, smth2_event, smth3_event>, test1_with_same_priority, test2_with_priority, test3_with_priority>;
 
 	int int_data = 0;
 	ev::fire_emplace_event<smth1_event, table>(listeners, int_data);
